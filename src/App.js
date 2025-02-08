@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { Camera, X } from "lucide-react";
+import Tesseract from "tesseract.js";
 
 const Button = ({ children, onClick }) => (
   <button onClick={onClick} className="bg-blue-500 text-white px-4 py-2 rounded">
@@ -9,15 +10,30 @@ const Button = ({ children, onClick }) => (
 
 export default function LotteryScanner() {
   const [image, setImage] = useState(null);
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleCapture = (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => setImage(reader.result);
+      reader.onload = () => {
+        setImage(reader.result);
+        processImage(reader.result);
+      };
       reader.readAsDataURL(file);
     }
+  };
+
+  const processImage = (imageData) => {
+    setLoading(true);
+    Tesseract.recognize(imageData, "eng")
+      .then(({ data: { text } }) => {
+        setResult(text);
+      })
+      .catch((error) => console.error("OCR Error:", error))
+      .finally(() => setLoading(false));
   };
 
   return (
@@ -38,14 +54,24 @@ export default function LotteryScanner() {
           </Button>
         </>
       ) : (
-        <div className="relative">
-          <img src={image} alt="Vé số" className="rounded-lg shadow-lg max-w-full" />
+        <div className="relative flex flex-col items-center">
+          <img src={image} alt="Vé số" className="rounded-lg shadow-lg max-w-full mb-4" />
           <Button
-            onClick={() => setImage(null)}
+            onClick={() => {
+              setImage(null);
+              setResult("");
+            }}
             className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full"
           >
             <X size={16} />
           </Button>
+        </div>
+      )}
+      {loading && <p className="text-gray-600 mt-2">Đang xử lý hình ảnh...</p>}
+      {result && (
+        <div className="bg-white p-4 rounded shadow mt-4">
+          <h2 className="text-lg font-semibold">Kết quả OCR:</h2>
+          <p className="text-gray-800 whitespace-pre-line">{result}</p>
         </div>
       )}
     </div>
